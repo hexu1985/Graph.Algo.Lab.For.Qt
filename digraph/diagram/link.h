@@ -2,6 +2,7 @@
 #define LINK_H
 
 #include <QGraphicsLineItem>
+#include "nlohmann/json.hpp"
 
 class Node;
 
@@ -24,6 +25,9 @@ public:
 
     void turnRound();
 
+    static Link *newFromJson(nlohmann::json &json, const std::map<int, Node *> &nodeList);
+    nlohmann::json toJson();
+	
 private:
     Node *myFromNode;
     Node *myToNode;
