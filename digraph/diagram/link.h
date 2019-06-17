@@ -9,7 +9,7 @@ class Node;
 class Link : public QGraphicsLineItem
 {
 public:
-    Link(Node *fromNode, Node *toNode);
+    Link(Node *fromNode, Node *toNode, bool bidirect = false);
     ~Link();
 
     Node *fromNode() const;
@@ -17,6 +17,9 @@ public:
 
     void setColor(const QColor &color);
     QColor color() const;
+
+    void setBidirect(bool bidirect);
+    bool isBidirected() const;
 
     void trackNodes();
 
@@ -31,6 +34,7 @@ public:
 private:
     Node *myFromNode;
     Node *myToNode;
+    bool bidirected = false;
 };
 
 #endif

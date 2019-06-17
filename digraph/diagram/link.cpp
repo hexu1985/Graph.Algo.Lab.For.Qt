@@ -17,7 +17,7 @@ Node *find_node(const std::map<int, Node *> &nodeList, int index)
 
 }
 
-Link::Link(Node *fromNode, Node *toNode)
+Link::Link(Node *fromNode, Node *toNode, bool bidirect): bidirected(bidirect)
 {
     myFromNode = fromNode;
     myToNode = toNode;
@@ -30,6 +30,7 @@ Link::Link(Node *fromNode, Node *toNode)
 
     setColor(Qt::darkRed);
     trackNodes();
+    update();
 }
 
 Link::~Link()
@@ -68,6 +69,16 @@ void Link::turnRound()
     std::swap(myFromNode, myToNode);
 }
 
+void Link::setBidirect(bool bidirect)
+{
+    bidirected = bidirect;
+}
+
+bool Link::isBidirected() const
+{
+    return bidirected;
+}
+
 namespace {
 
 void drawArrowLine(QPainter &painter, const QPointF &p1, const QPointF &p2) // from p1 to p2
@@ -77,7 +88,7 @@ void drawArrowLine(QPainter &painter, const QPointF &p1, const QPointF &p2) // f
         return;
 
     QPointF pm((p1.x()+p2.x())/2, (p1.y()+p2.y())/2); // p1和p2的中点
-    int width = 17;     // 箭头宽度
+    int width = 12;     // 箭头宽度
     int length = 10;    // 箭头长度
     QPointF pa, pb, pc;  // pa为箭头顶点, pb, pc为两边的顶点
     double sin1, cos1, sin2, cos2;
@@ -131,7 +142,11 @@ void Link::paint(QPainter *painter,
     painter->setPen(pen);
     painter->setBrush(color());
 
-    drawArrowLine(*painter, myFromNode->pos(), myToNode->pos());
+    if (isBidirected()) {
+        painter->drawLine(myFromNode->pos(), myToNode->pos());
+    } else {
+        drawArrowLine(*painter, myFromNode->pos(), myToNode->pos());
+    }
 }
 
 
@@ -161,14 +176,17 @@ Link *Link::newFromJson(nlohmann::json &json, const std::map<int, Node *> &nodeL
         return NULL;
     }
 
-    return new Link(fromNode, toNode);
+    bool bidirect = json["bidirectional"].get<bool>();
+
+    return new Link(fromNode, toNode, bidirect);
 }
 
 nlohmann::json Link::toJson()
 {
     nlohmann::json obj = {
         {"from", fromNode()->index()},
-        {"to", toNode()->index()}
+        {"to", toNode()->index()},
+        {"bidirectional", isBidirected()}
     };
 
     return obj;

@@ -13,5 +13,7 @@
     <file>images/open.png</file>
     <file>images/save.png</file>
     <file>images/turnroundlink.png</file>
+    <file>images/bidirectlink.png</file>
+    <file>images/directlink.png</file>
 </qresource>
 </RCC>

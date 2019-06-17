@@ -132,6 +132,27 @@ void DiagramWindow::turnRoundLink()
     if (link) {
         link->turnRound();
         link->trackNodes();
+        link->update();
+    }
+}
+
+void DiagramWindow::setBidirectLink()
+{
+    Link *link = selectedLink();
+    if (link) {
+        link->setBidirect(true);
+        link->trackNodes();
+        link->update();
+    }
+}
+
+void DiagramWindow::setDirectLink()
+{
+    Link *link = selectedLink();
+    if (link) {
+        link->setBidirect(false);
+        link->trackNodes();
+        link->update();
     }
 }
 
@@ -242,6 +263,8 @@ void DiagramWindow::updateActions()
     copyAction->setEnabled(isNode);
     addLinkAction->setEnabled(isNodePair);
     turnRoundLinkAction->setEnabled(isLink);
+    setBidirectLinkAction->setEnabled(isLink);
+    setDirectLinkAction->setEnabled(isLink);
     deleteAction->setEnabled(hasSelection);
     bringToFrontAction->setEnabled(isNode);
     sendToBackAction->setEnabled(isNode);
@@ -299,6 +322,16 @@ void DiagramWindow::createActions()
     turnRoundLinkAction->setIcon(QIcon(":/images/turnroundlink.png"));
     connect(turnRoundLinkAction, SIGNAL(triggered()),
             this, SLOT(turnRoundLink()));
+
+    setBidirectLinkAction = new QAction(tr("Set Link Bidirect"), this);
+    setBidirectLinkAction->setIcon(QIcon(":/images/bidirectlink.png"));
+    connect(setBidirectLinkAction, SIGNAL(triggered()),
+            this, SLOT(setBidirectLink()));
+
+    setDirectLinkAction = new QAction(tr("Set Link Direct"), this);
+    setDirectLinkAction->setIcon(QIcon(":/images/directlink.png"));
+    connect(setDirectLinkAction, SIGNAL(triggered()),
+            this, SLOT(setDirectLink()));
 
     deleteAction = new QAction(tr("&Delete"), this);
     deleteAction->setIcon(QIcon(":/images/delete.png"));
@@ -371,6 +404,8 @@ void DiagramWindow::createToolBars()
     editToolBar->addAction(addNodeAction);
     editToolBar->addAction(addLinkAction);
     editToolBar->addAction(turnRoundLinkAction);
+    editToolBar->addAction(setBidirectLinkAction);
+    editToolBar->addAction(setDirectLinkAction);
     editToolBar->addAction(deleteAction);
     editToolBar->addSeparator();
     editToolBar->addAction(cutAction);

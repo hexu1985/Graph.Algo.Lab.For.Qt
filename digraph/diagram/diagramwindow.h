@@ -33,6 +33,8 @@ private slots:
     void addNode();
     void addLink();
     void turnRoundLink();
+    void setBidirectLink();
+    void setDirectLink();
     void del();
     void cut();
     void copy();
@@ -78,6 +80,8 @@ private:
     QAction *addLinkAction;
     QAction *deleteAction;
     QAction *turnRoundLinkAction;
+    QAction *setBidirectLinkAction;
+    QAction *setDirectLinkAction;
     QAction *cutAction;
     QAction *copyAction;
     QAction *pasteAction;
