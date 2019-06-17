@@ -1,9 +1,19 @@
 #include <QtWidgets>
+#include <fstream>
+#include <string>
+#include <iterator>
+#include <iostream>
+#include <iomanip>
 
 #include "diagramwindow.h"
 #include "link.h"
 #include "node.h"
 #include "propertiesdialog.h"
+
+namespace {
+const bool AUTO_POS = true;
+const bool NON_AUTO_POS = false;
+}
 
 DiagramWindow::DiagramWindow()
 {
@@ -28,15 +38,81 @@ DiagramWindow::DiagramWindow()
     connect(scene, SIGNAL(selectionChanged()),
             this, SLOT(updateActions()));
 
-    setWindowTitle(tr("Diagram"));
+    setWindowTitle(tr("Graph"));
     updateActions();
+    setCurrentFile("");
+}
+
+void DiagramWindow::closeEvent(QCloseEvent *event)
+{
+    if (okToContinue()) {
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+void DiagramWindow::clear()
+{
+    linkList.clear();
+    nodeList.clear();
+    deleleAllItems();
+
+    minZ = 0;
+    maxZ = 0;
+    seqNumber = 0;
+
+    setWindowTitle(tr("Graph"));
+    updateActions();
+    setCurrentFile("");
+}
+
+void DiagramWindow::newFile()
+{
+    if (okToContinue()) {
+        clear();
+    }
+}
+
+void DiagramWindow::open()
+{
+    if (okToContinue()) {
+        clear();
+        QString fileName = QFileDialog::getOpenFileName(this,
+                                   tr("Open Graph"), ".",
+                                   tr("Graph files (*.diag)"));
+        if (!fileName.isEmpty())
+            loadFile(fileName);
+    }
+}
+
+bool DiagramWindow::save()
+{
+    if (curFile.isEmpty()) {
+        return saveAs();
+    } else {
+        return saveFile(curFile);
+    }
+}
+
+bool DiagramWindow::saveAs()
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                    tr("Save diagram"), ".",
+                                    tr("Graph files (*.diag)"));
+    if (fileName.isEmpty())
+        return false;
+
+    return saveFile(fileName);
 }
 
 void DiagramWindow::addNode()
 {
-    Node *node = new Node;
-    node->setText(tr("Node %1").arg(seqNumber + 1));
-    setupNode(node);
+    int index = seqNumber + 1;
+    Node *node = new Node(index);
+    node->setText(tr("Node %1").arg(index));
+    setupNode(node, AUTO_POS);
+    setWindowModified(true);
 }
 
 void DiagramWindow::addLink()
@@ -46,7 +122,15 @@ void DiagramWindow::addLink()
         return;
 
     Link *link = new Link(nodes.first, nodes.second);
-    scene->addItem(link);
+    setupLink(link);
+    setWindowModified(true);
+}
+
+void DiagramWindow::deleleAllItems()
+{
+    QList<QGraphicsItem *> items = scene->items();
+    qDeleteAll(items);
+    setWindowModified(true);
 }
 
 void DiagramWindow::del()
@@ -54,14 +138,20 @@ void DiagramWindow::del()
     QList<QGraphicsItem *> items = scene->selectedItems();
     QMutableListIterator<QGraphicsItem *> i(items);
     while (i.hasNext()) {
-        Link *link = dynamic_cast<Link *>(i.next());
+        QGraphicsItem *item = i.next();
+        Link *link = dynamic_cast<Link *>(item);
         if (link) {
             delete link;
             i.remove();
         }
+        Node *node = dynamic_cast<Node *>(item);
+        if (node) {
+            nodeList.erase(node->index());
+        }
     }
 
     qDeleteAll(items);
+    setWindowModified(true);
 }
 
 void DiagramWindow::cut()
@@ -94,13 +184,15 @@ void DiagramWindow::paste()
     QStringList parts = str.split(" ");
 
     if (parts.count() >= 5 && parts.first() == "Node") {
-        Node *node = new Node;
+        int index = seqNumber + 1;
+        Node *node = new Node(index);
         node->setText(QStringList(parts.mid(4)).join(" "));
         node->setTextColor(QColor(parts[1]));
         node->setOutlineColor(QColor(parts[2]));
         node->setBackgroundColor(QColor(parts[3]));
-        setupNode(node);
+        setupNode(node, AUTO_POS);
     }
+    setWindowModified(true);
 }
 
 void DiagramWindow::bringToFront()
@@ -155,6 +247,29 @@ void DiagramWindow::updateActions()
 
 void DiagramWindow::createActions()
 {
+    newAction = new QAction(tr("&New"), this);
+    newAction->setIcon(QIcon(":/images/new.png"));
+    newAction->setShortcut(QKeySequence::New);
+    newAction->setStatusTip(tr("Create a new spreadsheet file"));
+    connect(newAction, SIGNAL(triggered()), this, SLOT(newFile()));
+
+    openAction = new QAction(tr("&Open..."), this);
+    openAction->setIcon(QIcon(":/images/open.png"));
+    openAction->setShortcut(QKeySequence::Open);
+    openAction->setStatusTip(tr("Open an existing spreadsheet file"));
+    connect(openAction, SIGNAL(triggered()), this, SLOT(open()));
+
+    saveAction = new QAction(tr("&Save"), this);
+    saveAction->setIcon(QIcon(":/images/save.png"));
+    saveAction->setShortcut(QKeySequence::Save);
+    saveAction->setStatusTip(tr("Save the spreadsheet to disk"));
+    connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
+
+    saveAsAction = new QAction(tr("Save &As..."), this);
+    saveAsAction->setStatusTip(tr("Save the spreadsheet under a new "
+                                  "name"));
+    connect(saveAsAction, SIGNAL(triggered()), this, SLOT(saveAs()));
+
     exitAction = new QAction(tr("E&xit"), this);
     exitAction->setShortcut(tr("Ctrl+Q"));
     connect(exitAction, SIGNAL(triggered()), this, SLOT(close()));
@@ -207,6 +322,10 @@ void DiagramWindow::createActions()
 void DiagramWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(newAction);
+    fileMenu->addAction(openAction);
+    fileMenu->addAction(saveAction);
+    fileMenu->addAction(saveAsAction);
     fileMenu->addAction(exitAction);
 
     editMenu = menuBar()->addMenu(tr("&Edit"));
@@ -226,6 +345,11 @@ void DiagramWindow::createMenus()
 
 void DiagramWindow::createToolBars()
 {
+    fileToolBar = addToolBar(tr("&File"));
+    fileToolBar->addAction(newAction);
+    fileToolBar->addAction(openAction);
+    fileToolBar->addAction(saveAction);
+
     editToolBar = addToolBar(tr("Edit"));
     editToolBar->addAction(addNodeAction);
     editToolBar->addAction(addLinkAction);
@@ -246,16 +370,26 @@ void DiagramWindow::setZValue(int z)
         node->setZValue(z);
 }
 
-void DiagramWindow::setupNode(Node *node)
+void DiagramWindow::setupLink(Link *link)
 {
-    node->setPos(QPoint(80 + (100 * (seqNumber % 5)),
-                        80 + (50 * ((seqNumber / 5) % 7))));
+    scene->addItem(link);
+    linkList.insert(link);
+}
+
+void DiagramWindow::setupNode(Node *node, bool autoPos)
+{
+    if (autoPos) {
+        node->setPos(QPoint(80 + (100 * (seqNumber % 5)),
+                    80 + (50 * ((seqNumber / 5) % 7))));
+    }
     scene->addItem(node);
-    ++seqNumber;
+    if (seqNumber < node->index())
+        seqNumber = node->index();
 
     scene->clearSelection();
     node->setSelected(true);
     bringToFront();
+    nodeList[node->index()] = node;
 }
 
 Node *DiagramWindow::selectedNode() const
@@ -288,4 +422,127 @@ DiagramWindow::NodePair DiagramWindow::selectedNodePair() const
             return NodePair(first, second);
     }
     return NodePair();
+}
+
+bool DiagramWindow::deserializeFromJson(nlohmann::json &json)
+{
+    auto nodes = json["nodes"];
+    if (nodes.is_array()) {
+        for (auto nodeJson: nodes) {
+            auto node = Node::newFromJson(nodeJson);
+            if (!node)
+                continue;
+            setupNode(node, NON_AUTO_POS);
+        }
+        setWindowModified(true);
+    }
+
+    auto links = json["links"];
+    if (links.is_array()) {
+        for (auto linkJson: links) {
+            auto link = Link::newFromJson(linkJson, nodeList);
+            if (!link)
+                continue;
+            setupLink(link);
+        }
+        setWindowModified(true);
+    }
+
+    return true;
+}
+
+bool DiagramWindow::loadFile(const QString &fileName)
+{
+    std::ifstream ifile(fileName.toStdString());
+    if (!ifile) {
+        QMessageBox::information(this, "Error", "open file fail!");
+        return false;
+    }
+
+    nlohmann::json json;
+
+    ifile >> json;
+
+    if (!deserializeFromJson(json)) {
+        QMessageBox::information(this, "Error", "parse file fail!");
+        return false;
+    }
+
+    setCurrentFile(fileName);
+
+    return true;
+}
+
+nlohmann::json DiagramWindow::serializeToJson()
+{
+    auto nodes = nlohmann::json::array();
+    for (auto node: nodeList) {
+        auto obj = node.second->toJson();
+        nodes.push_back(obj);
+    }
+
+    auto links = nlohmann::json::array();
+    for (auto link: linkList) {
+        auto obj = link->toJson();
+        links.push_back(obj);
+    }
+
+    nlohmann::json json = {
+            {"nodes", nodes},
+            {"links", links}
+            };
+
+    return json;
+}
+
+bool DiagramWindow::saveFile(const QString &fileName)
+{
+    std::ofstream ofile(fileName.toStdString());
+    if (!ofile) {
+        QMessageBox::information(this, "Error", "save file fail!");
+        return false;
+    }
+
+    auto json = serializeToJson();
+    ofile << std::setw(4) << json << std::endl;
+
+    setCurrentFile(fileName);
+
+    return true;
+}
+
+void DiagramWindow::setCurrentFile(const QString &fileName)
+{
+    curFile = fileName;
+    setWindowModified(false);
+
+    QString shownName = tr("Untitled");
+    if (!curFile.isEmpty()) {
+        shownName = strippedName(curFile);
+    }
+
+    setWindowTitle(tr("%1 - %2[*]").arg(tr("Graph"))
+                                   .arg(shownName));
+}
+
+QString DiagramWindow::strippedName(const QString &fullFileName)
+{
+    return QFileInfo(fullFileName).fileName();
+}
+
+bool DiagramWindow::okToContinue()
+{
+    if (isWindowModified()) {
+        int r = QMessageBox::warning(this, tr("Graph"),
+                tr("The document has been modified.\n"
+                    "Do you want to save your changes?"),
+                QMessageBox::Yes | QMessageBox::No
+                | QMessageBox::Cancel);
+        if (r == QMessageBox::Yes) {
+            return save();
+        } else if (r == QMessageBox::Cancel) {
+            return false;
+        }
+    }
+    return true;
 }

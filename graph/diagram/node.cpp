@@ -1,10 +1,12 @@
 #include <QtWidgets>
+#include <iostream>
 
 #include "link.h"
 #include "node.h"
 
-Node::Node()
+Node::Node(int index)
 {
+    myIndex = index;
     myTextColor = Qt::darkGreen;
     myOutlineColor = Qt::darkBlue;
     myBackgroundColor = Qt::white;
@@ -23,6 +25,11 @@ void Node::setText(const QString &text)
     prepareGeometryChange();
     myText = text;
     update();
+}
+
+int Node::index() const
+{
+    return myIndex;
 }
 
 QString Node::text() const
@@ -141,4 +148,50 @@ int Node::roundness(double size) const
 {
     const int Diameter = 12;
     return 100 * Diameter / int(size);
+}
+
+nlohmann::json Node::toJson()
+{
+    nlohmann::json obj = {
+        {"index", myIndex},
+        {"text", myText.toStdString()},
+        {"x", (int) this->x()},
+        {"y", (int) this->y()}
+    };
+
+    return obj;
+}
+
+Node *Node::newFromJson(nlohmann::json &json)
+{
+    auto index = json["index"];
+    if (!index.is_number()) {
+        std::cerr << "invalid json of node, no index property\n";
+        return NULL;
+    }
+
+    auto text = json["text"];
+    if (!text.is_string()) {
+        std::cerr << "invalid json of node, no string property\n";
+        return NULL;
+    }
+
+    auto xPos = json["x"];
+    if (!xPos.is_number()) {
+        std::cerr << "invalid json of node, no x property\n";
+        return NULL;
+    }
+
+    auto yPos = json["y"];
+    if (!yPos.is_number()) {
+        std::cerr << "invalid json of node, no y property\n";
+        return NULL;
+    }
+
+    auto node = new Node(index.get<int>());
+    node->setText(QString(text.get<std::string>().c_str()));
+    node->setX(xPos.get<int>());
+    node->setY(yPos.get<int>());
+
+    return node;
 }

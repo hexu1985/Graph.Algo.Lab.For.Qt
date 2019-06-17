@@ -3,6 +3,10 @@
 
 #include <QMainWindow>
 #include <QPair>
+#include <set>
+#include <map>
+#include <string>
+#include "nlohmann/json.hpp"
 
 class QAction;
 class QGraphicsItem;
@@ -18,7 +22,14 @@ class DiagramWindow : public QMainWindow
 public:
     DiagramWindow();
 
+protected:
+    void closeEvent(QCloseEvent *event);
+
 private slots:
+    void newFile();
+    void open();
+    bool save();
+    bool saveAs();
     void addNode();
     void addLink();
     void del();
@@ -37,14 +48,30 @@ private:
     void createMenus();
     void createToolBars();
     void setZValue(int z);
-    void setupNode(Node *node);
+    void setupNode(Node *node, bool autoPos);
     Node *selectedNode() const;
     Link *selectedLink() const;
     NodePair selectedNodePair() const;
 
+    bool loadFile(const QString &fileName);
+    bool saveFile(const QString &fileName);
+    void setCurrentFile(const QString &fileName);
+    QString strippedName(const QString &fullFileName);
+    bool okToContinue();
+    nlohmann::json serializeToJson();
+    void deleleAllItems();
+    void clear();
+    bool deserializeFromJson(nlohmann::json &json);
+    void setupLink(Link *link);
+
     QMenu *fileMenu;
     QMenu *editMenu;
     QToolBar *editToolBar;
+    QToolBar *fileToolBar;
+    QAction *newAction;
+    QAction *openAction;
+    QAction *saveAction;
+    QAction *saveAsAction;
     QAction *exitAction;
     QAction *addNodeAction;
     QAction *addLinkAction;
@@ -62,6 +89,9 @@ private:
     int minZ;
     int maxZ;
     int seqNumber;
+    QString curFile;
+    std::set<Link *> linkList;
+    std::map<int, Node *> nodeList;
 };
 
 #endif
