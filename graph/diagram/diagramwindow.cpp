@@ -9,6 +9,7 @@
 #include "link.h"
 #include "node.h"
 #include "propertiesdialog.h"
+#include "linkpropertiesdialog.h"
 
 namespace {
 const bool AUTO_POS = true;
@@ -216,9 +217,13 @@ void DiagramWindow::properties()
         PropertiesDialog dialog(node, this);
         dialog.exec();
     } else if (link) {
+        LinkPropertiesDialog dialog(link, this);
+        dialog.exec();
+#if 0
         QColor color = QColorDialog::getColor(link->color(), this);
         if (color.isValid())
             link->setColor(color);
+#endif
     }
 }
 
@@ -227,6 +232,7 @@ void DiagramWindow::updateActions()
     bool hasSelection = !scene->selectedItems().isEmpty();
     bool isNode = (selectedNode() != 0);
     bool isNodePair = (selectedNodePair() != NodePair());
+    bool isLink = (selectedLink() != 0);
 
     cutAction->setEnabled(isNode);
     copyAction->setEnabled(isNode);
@@ -234,7 +240,7 @@ void DiagramWindow::updateActions()
     deleteAction->setEnabled(hasSelection);
     bringToFrontAction->setEnabled(isNode);
     sendToBackAction->setEnabled(isNode);
-    propertiesAction->setEnabled(isNode);
+    propertiesAction->setEnabled(isNode || isLink);
 
     foreach (QAction *action, view->actions())
         view->removeAction(action);

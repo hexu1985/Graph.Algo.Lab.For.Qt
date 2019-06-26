@@ -11,7 +11,10 @@ QT += widgets
 CONFIG += c++11
 
 # Input
-HEADERS += diagramwindow.h link.h node.h propertiesdialog.h nlohmann/json.hpp
-FORMS += propertiesdialog.ui
-SOURCES += diagramwindow.cpp link.cpp main.cpp node.cpp propertiesdialog.cpp
+HEADERS += diagramwindow.h link.h node.h propertiesdialog.h nlohmann/json.hpp \
+    linkpropertiesdialog.h
+FORMS += propertiesdialog.ui \
+    linkpropertiesdialog.ui
+SOURCES += diagramwindow.cpp link.cpp main.cpp node.cpp propertiesdialog.cpp \
+    linkpropertiesdialog.cpp
 RESOURCES += resources.qrc

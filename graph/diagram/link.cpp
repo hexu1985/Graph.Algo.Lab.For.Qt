@@ -1,5 +1,6 @@
 #include <QtWidgets>
 #include <iostream>
+#include <cmath>
 
 #include "link.h"
 #include "node.h"
@@ -100,3 +101,15 @@ nlohmann::json Link::toJson()
 
     return obj;
 }
+
+double Link::length() const
+{
+    auto x1 = fromNode()->x();
+    auto y1 = fromNode()->y();
+    auto x2 = toNode()->x();
+    auto y2 = toNode()->y();
+
+    auto dist_square = (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2);
+    return sqrt(dist_square);
+}
+

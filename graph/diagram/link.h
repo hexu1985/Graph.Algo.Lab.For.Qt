@@ -23,6 +23,8 @@ public:
     static Link *newFromJson(nlohmann::json &json, const std::map<int, Node *> &nodeList);
     nlohmann::json toJson();
 
+    double length() const;
+
 private:
     Node *myFromNode;
     Node *myToNode;
